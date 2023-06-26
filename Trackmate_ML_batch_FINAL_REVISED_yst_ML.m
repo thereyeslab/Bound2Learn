@@ -117,36 +117,71 @@ function Concatenate_tracks
     end
 end
         
-%% 
- 
+%% Classifier 1 :
+% Discription:
+% This function classifies the tracks as bound or diffusive based on the
+% speed parameters, using a pre-trained model: 
+% 1) It fits the log of mean speed parameter of the data into a GMM model
+% and the component with the lowest mean is selected as representing the
+% immobile molecules.
+% 2) It scales the speed variables using this formula:  scale factor = mean (mean speed_training)/mean(mean speed_boundPOI)
+% The defult value for mean speed_training is 1.31 (training dataset used: H3)
+% 3) It performs first classification using a pre-trained classifier 
+
+% Inputs:
+% 1) Q.mat : The trained model 2)tracksdata.mat: the track files
+% 3)tracks_training_combined: all of the track files merged into one file
+% (for fitting their mean speed in GMM model)
+
+% Outputs:
+% NOQ.mat: is of "struct" datatype containing four matrices:
+% 1) Tracks_pred: all of the 18 features outputted from trackmate for the bound tracks
+% 2) Prediction class : the class asigned to each track (diffusing 0 or bound 1)
+% 3) Training_Scaled: scaled speed parameters of all of the tracks
+% 4) TrainingQ: speed parameters as well as std_sp, med_q_tr, std_q_tr for
+% bound tracks (to be used in the next classification 
+
 function Classifier_1
+    % Prompt the user to select a classifier file:
     [filename_classifier,  path_classifier] = uigetfile('*mod*.mat','Pick Classifier file');
+
+    % Prompt the user to select parameters taking into account for classification:
     pred_used_class = inputdlg({'Spot Width','Mean Speed', 'Max Speed', 'Min Speed', 'Median Speed','Sigma Speed','Mean Quality', 'Max Quality', 'Min Quality', 'Median Quality', 'Sigma Quality','Mean Total Intensity', 'Max Intensity'}, 'Predictors', ...
         [1 100; 1 100; 1 100; 1 100; 1 100; 1 100; 1 100; 1 100; 1 100; 1 100; 1 100; 1 100; 1 100], {'0','1','1','1','1','0','0','0','0','0','0','0','0'});
     pred_used_2_class = str2num(cell2mat(pred_used_class));
     pred_var_class = find(pred_used_2_class);
-    
     classifier = importdata(strcat(path_classifier,filename_classifier));
+
+    % Prompt the user to select the track files to be classifed
     filename_new_data = uigetfile('*tracksdata.mat','Pick new data files', 'Multiselect', 'on');
     filename_new_data = filename_new_data';
-
+    
+    % Prompt the user to select the tracks combined file
     filename_tracks_combined = uigetfile('*tracks_training_combined*', 'Pick tracks combined file');
+
+    % Prompt the user to eneter the mean(mean_ speed_training)
     Fraction_factors = inputdlg('Speed Factor', 'Fraction Factors', [1 100],{'1.31'});
     tracks_combined = importdata(filename_tracks_combined);
     mean_speed_values = tracks_combined(:, 2);
-     [Best_sp, comp_sp] = GMM_BIC_ML_log(mean_speed_values,2, false);
-     mu_sp = Best_sp.mu;
-     mu_sp = unique(mu_sp);
-     mean_speed = mu_sp(1);
+
+    % Perform Gaussian Mixture Model (GMM) fitting to estimate the mean
+    % speed of immobile molecules of the protein of interest:
+    [Best_sp, comp_sp] = GMM_BIC_ML_log(mean_speed_values,2, false);
+    mu_sp = Best_sp.mu;
+    mu_sp = unique(mu_sp);
+    mean_speed = mu_sp(1);
      
-     if Best_sp.ComponentProportion(1) > 0.85 | Best_sp.ComponentProportion(2) > 0.85
+    if Best_sp.ComponentProportion(1) > 0.85 | Best_sp.ComponentProportion(2) > 0.85
          mean_speed = mean(log(mean_speed_values));
-     end
-     disp(mean_speed)
-     GM_fit_sp = inputdlg('Log(MeanSP)', 'Fit Correction', [1 100], {num2str(mean_speed)}); 
-      mean_sp = str2num(GM_fit_sp{1});
-      
-     mean_speed = exp(mean_sp);
+    end
+    disp(mean_speed)
+
+    % correcting the meand speed incase the fitting was not good.
+    GM_fit_sp = inputdlg('Log(MeanSP)', 'Fit Correction', [1 100], {num2str(mean_speed)}); 
+    mean_sp = str2num(GM_fit_sp{1});
+
+    % converting log of mean speed to the normal form:
+    mean_speed = exp(mean_sp);
 
     for i = 1:length(filename_new_data)
         
@@ -156,31 +191,49 @@ function Classifier_1
         if isempty(new_data_2) == 1
             continue
         end
-         frac_speed = str2num(Fraction_factors{1})/mean_speed;
-         
-         new_data_2(:,2:6) = new_data_2(:,2:6)*frac_speed;
-        
+        % calculating the scaling factor:
+        frac_speed = str2num(Fraction_factors{1})/mean_speed;
+
+        % scaling the speed variables using the scaling factor:
+        new_data_2(:,2:6) = new_data_2(:,2:6)*frac_speed;
+
+        % choosing the variables (they are scaled) from the tracks to be used for the
+        % classification, based on the user's input:
         new_data_2 = new_data_2(:,pred_var_class);
         new_data_3 = new_data_2;
+
+        % adding the quality variables into the file containing scaled speed vaiables (to
+        % be used in the classifire2:
         new_data_3(:,5:7) = new_data.Training(:, [8,12,13]);
-%         if isempty(new_data) == 1
-%             continue
-%         end
+
+        %if isempty(new_data) == 1
+        %   continue
+        %end
+
+        % importing the data again to be able to store all the feautures of
+        % the bound molecule for the further steps of analysis:
         tracks = importdata(filename_new_data{i});
         tracks_2 = tracks.Segmented_Tracks;
         new_data_var = new_data_2;%(:,1:5);
-
+        
+        % classifying the tracks:
         prediction_class = predict(classifier, new_data_var);
         if iscell(prediction_class) == 1
             prediction_class = cell2mat(prediction_class);
             prediction_class = str2num(prediction_class);
         end
+        % pred_isolate: the index of tracks classifed as bound:
         pred_isolate  = find(prediction_class (:,1) == 1);
+
+        % the tracks classified as bound with all of their 18 features:
         tracks_prediction = tracks_2(pred_isolate, :);
+
+        % the scaled speed variables and the quality variables of the bound
+        % tracks:
         new_data_4 = new_data_3(pred_isolate,:);
-
-         filename_tracks_save = strrep(filename_new_data{i},'tracksdata.mat', 'NOQ.mat');
-
+        
+        % saving the output file:
+        filename_tracks_save = strrep(filename_new_data{i},'tracksdata.mat', 'NOQ.mat');
         data_tracks_pred = struct('Tracks_pred',tracks_prediction, 'Prediction_class', prediction_class,'Training_Scaled',new_data_2,'TrainingQ',new_data_4);
         save (filename_tracks_save, 'data_tracks_pred');
     end 
