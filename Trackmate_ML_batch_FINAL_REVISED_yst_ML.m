@@ -170,7 +170,7 @@ function Classifier_1
     mu_sp = Best_sp.mu;
     mu_sp = unique(mu_sp);
     mean_speed = mu_sp(1);
-     
+
     if Best_sp.ComponentProportion(1) > 0.85 | Best_sp.ComponentProportion(2) > 0.85
          mean_speed = mean(log(mean_speed_values));
     end
