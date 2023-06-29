@@ -74,7 +74,30 @@ function Classifier_2
         save (filename_tracks_save, 'data_tracks_pred');
     end 
 end
-%% 
+%% Concatenate_tracks:
+% This function puts all of the tracks from multiple files into one signle
+% file, to be used for the GMM fitting
+% 
+% Inputs: 
+% 1) tracksdata.mat files (struct): the result of this concatination will be used for the first GMM fitting of mean speed to be
+% used in classifire_1. This file is a struct with two
+% fields:Segmented_Tracks (18 columns) and Training(13 columns). This file
+% is outputted from Trackmate_outputter_BATCH_FINAL.m
+% OR:
+% 2)*NOQ*.mat files (struct): the result of this concatination will be used for the second GMM fitting of max quality to be
+% used in classifire_2. This file is a struct with four fields outputted
+% from classifire 2: Tracks_pred, prediction_class, Training_scaled,
+% Training_Q
+%
+% Outputs:
+%1) tracks_training_combined(_2).mat (struct): the Training or TrainingQ of
+% all of the tracks with 13 columns
+%2) tracks_seg_combined(_2).mat (struct): Segmented_tracks or tracks_pred of
+% all of the tracks with 18 columns
+% 
+% Note: 
+% The output files are saved in the current directory. They are not the
+% output of function.
 
 function Concatenate_tracks 
     conc_input = inputdlg('Combine Initial Tracks?', 'Track Combiner', [1 100], {'Y'});
@@ -84,6 +107,8 @@ function Concatenate_tracks
         num_files_TR = length(filenames_TR);
         Tracks_cell_TR = cell(num_files_TR,1);
         Tracks_cell_seg = cell(num_files_TR,1);
+        % iterate over file names to load the data and store their Training and
+        % segmented_tracks fields:
         for i = 1:num_files_TR
 
                  ld_TR = importdata(filenames_TR{i});
@@ -92,26 +117,34 @@ function Concatenate_tracks
                  Tracks_cell_TR{i} = training_TR ;
                  Tracks_cell_seg{i} = seg_TR;
         end
+        % concatenating tracks
         tracks_training_final = vertcat(Tracks_cell_TR{:});
         tracks_seg_final = vertcat(Tracks_cell_seg{:});
+        % saving combined tracks files
         save('tracks_training_combined.mat', 'tracks_training_final');
         save('tracks_seg_combined.mat', 'tracks_seg_final');
     else
+        % concatination for the second GMM fitting to input into
+        % Classifire_2
         filenames_TR = uigetfile('*NOQ*.mat', 'Training','Multiselect', 'on');
         filenames_TR = filenames_TR'; 
         num_files_TR = length(filenames_TR);
         Tracks_cell_TR = cell(num_files_TR,1);
         Tracks_cell_seg = cell(num_files_TR,1);
+        % iterate over file names to load the data and store their TrainingQ and
+        % Tracks_pred fields:
         for i = 1:num_files_TR
 
                  ld_TR = importdata(filenames_TR{i});
-                 training_TR = ld_TR.TrainingQ;%Track_mate_training;
+                 training_TR = ld_TR.TrainingQ; %Track_mate_training;
                  seg_TR = ld_TR.Tracks_pred;
                  Tracks_cell_TR{i} = training_TR ;
                  Tracks_cell_seg{i} = seg_TR;
         end
+        % concatenating tracks
         tracks_training_final = vertcat(Tracks_cell_TR{:});
         tracks_seg_final = vertcat(Tracks_cell_seg{:});
+        % saving combined tracks files
         save('tracks_training_combined_2.mat', 'tracks_training_final');
         save('tracks_seg_combined_2.mat', 'tracks_seg_final');
     end
@@ -140,6 +173,9 @@ end
 % 3) Training_Scaled: scaled speed parameters of all of the tracks
 % 4) TrainingQ: speed parameters as well as std_sp, med_q_tr, std_q_tr for
 % bound tracks (to be used in the next classification 
+% Note: 
+% The output files are saved in the current directory. They are not the
+% output of function.
 
 function Classifier_1
     % Prompt the user to select a classifier file:
