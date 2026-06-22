@@ -1,26 +1,30 @@
+
 %% **
 function Trackmate_ML_batch_FINAL_REVISED_yst_ML
 list_ML = {'Learning','Training','Training Combiner','Classifier 1','Analysis','Concatenate','Classifier 2'};  
 ML_input = listdlg('PromptString','What do you want to do?','ListString',list_ML,'SelectionMode','single');
 
-if ML_input == 1
+if ML_input == 1 % 3
     Learner_model
 elseif ML_input == 2
-    Training_data  
+    Training_data  % 1
 elseif ML_input == 3
-    Training_combiner
+    Training_combiner % 2
 elseif ML_input == 4
-    Classifier_1
+    Classifier_1 % 5
 elseif ML_input == 5
-    Trackmate_Analysis_ML_FINAL
+    Trackmate_Analysis_ML_FINAL % 8 final
 elseif ML_input == 6
-    Concatenate_tracks
+    Concatenate_tracks % 4 , 6
 elseif ML_input == 7
-    Classifier_2
+    Classifier_2 % 7
 end
 end
 %% 
 function Classifier_2
+    % the combined tracks file is just for getting the distribution. It is
+    % not used for the classification and the tracks will be analyzed
+    % separately
  
     [filename_classifier,  path_classifier] = uigetfile('*mod*.mat','Pick Classifier file');
     pred_used_class = inputdlg({'Mean Speed', 'Max Speed', 'Min Speed','Median Speed','Max Quality',}, 'Predictors', ...
@@ -30,10 +34,12 @@ function Classifier_2
     classifier = importdata(strcat(path_classifier,filename_classifier));
     filename_new_data = uigetfile('*NOQ*.mat','Pick new data files', 'Multiselect', 'on');
     filename_new_data = filename_new_data';
+    %filename_new_data = {filename_new_data};
     filename_tracks_combined = uigetfile('*tracks_training_combined_2*', 'Pick tracks combined file');
     Fraction_factors = inputdlg('Quality Factor', 'Fraction Factors', [1 100],{'3000'});
     tracks_combined = importdata(filename_tracks_combined);
-    max_quality_values = (tracks_combined (:, 5));
+    
+    max_quality_values = (tracks_combined(:, 5));
     [Best_q, comp_q] = GMM_BIC_ML_log(max_quality_values,2, true);
     mu_q = Best_q.mu;
      if length (mu_q) > 1
@@ -75,12 +81,13 @@ function Classifier_2
     end 
 end
 %% 
-
+% concatinates tracks initial(racks_training_combined_2.mat, tracks_seg_combined.mat) or NOQ (is the out put of the classsifer1)(//2) from several files into two new file -Masoumeh
 function Concatenate_tracks 
     conc_input = inputdlg('Combine Initial Tracks?', 'Track Combiner', [1 100], {'Y'});
     if conc_input{1} == 'Y'
         filenames_TR = uigetfile('*tracksdata.mat', 'Training','Multiselect', 'on');
         filenames_TR = filenames_TR'; 
+        %filenames_TR = {filenames_TR};
         num_files_TR = length(filenames_TR);
         Tracks_cell_TR = cell(num_files_TR,1);
         Tracks_cell_seg = cell(num_files_TR,1);
@@ -99,6 +106,7 @@ function Concatenate_tracks
     else
         filenames_TR = uigetfile('*NOQ*.mat', 'Training','Multiselect', 'on');
         filenames_TR = filenames_TR'; 
+        %filenames_TR = {filenames_TR};
         num_files_TR = length(filenames_TR);
         Tracks_cell_TR = cell(num_files_TR,1);
         Tracks_cell_seg = cell(num_files_TR,1);
@@ -118,26 +126,31 @@ function Concatenate_tracks
 end
         
 %% 
- 
+ % input: 1. file containing the name "mod" whcih is the calssifier(trained model)
+ % 2. takes your new data which is the *tracksdata.mat taken from the
+  % trackmate outputter final (first initial)
+ %3. *tracks_training_combined* which is the output of Concatenate_tracks
+ %*** calls faunction: GMM_BIC_ML_log
 function Classifier_1
     [filename_classifier,  path_classifier] = uigetfile('*mod*.mat','Pick Classifier file');
     pred_used_class = inputdlg({'Spot Width','Mean Speed', 'Max Speed', 'Min Speed', 'Median Speed','Sigma Speed','Mean Quality', 'Max Quality', 'Min Quality', 'Median Quality', 'Sigma Quality','Mean Total Intensity', 'Max Intensity'}, 'Predictors', ...
         [1 100; 1 100; 1 100; 1 100; 1 100; 1 100; 1 100; 1 100; 1 100; 1 100; 1 100; 1 100; 1 100], {'0','1','1','1','1','0','0','0','0','0','0','0','0'});
     pred_used_2_class = str2num(cell2mat(pred_used_class));
+    % the speed values:
     pred_var_class = find(pred_used_2_class);
     
     classifier = importdata(strcat(path_classifier,filename_classifier));
     filename_new_data = uigetfile('*tracksdata.mat','Pick new data files', 'Multiselect', 'on');
     filename_new_data = filename_new_data';
-
+    %filename_new_data = {filename_new_data};
     filename_tracks_combined = uigetfile('*tracks_training_combined*', 'Pick tracks combined file');
     Fraction_factors = inputdlg('Speed Factor', 'Fraction Factors', [1 100],{'1.31'});
     tracks_combined = importdata(filename_tracks_combined);
     mean_speed_values = tracks_combined(:, 2);
-     [Best_sp, comp_sp] = GMM_BIC_ML_log(mean_speed_values,2, false);
-     mu_sp = Best_sp.mu;
-     mu_sp = unique(mu_sp);
-     mean_speed = mu_sp(1);
+    [Best_sp, comp_sp] = GMM_BIC_ML_log(mean_speed_values,2, false);
+    mu_sp = Best_sp.mu;
+    mu_sp = unique(mu_sp);
+    mean_speed = mu_sp(1);
      
      if Best_sp.ComponentProportion(1) > 0.85 | Best_sp.ComponentProportion(2) > 0.85
          mean_speed = mean(log(mean_speed_values));
@@ -152,42 +165,62 @@ function Classifier_1
         
         new_data = importdata(filename_new_data{i});
         
-        new_data_2 = new_data.Training;
+        new_data_2 = new_data.Training; % the newdata_2 has 13 columns
         if isempty(new_data_2) == 1
             continue
         end
          frac_speed = str2num(Fraction_factors{1})/mean_speed;
          
          new_data_2(:,2:6) = new_data_2(:,2:6)*frac_speed;
-        
+        % now the new_data_2 has the 13 column but the speed values are
+        % scaled
         new_data_2 = new_data_2(:,pred_var_class);
+        %now the new_data_2 has the 4 columns :the speed values that are
+        %scaled
         new_data_3 = new_data_2;
-        new_data_3(:,5:7) = new_data.Training(:, [8,12,13]);
+        %new_data_3 has the 4 columns :the speed values that are scaled
+        new_data_3(:,5:7) = new_data.Training(:, [8,12,13])
+        new_data_3(:, 1)
+        %new_data_3 has the 7 columns :the speed values that are scaled,max_q_tr, mean intensity, max intensity
 %         if isempty(new_data) == 1
 %             continue
 %         end
         tracks = importdata(filename_new_data{i});
         tracks_2 = tracks.Segmented_Tracks;
+        % now the tracks_2 has 18 columns for the tracks in S phase
         new_data_var = new_data_2;%(:,1:5);
-
+        % new_data_var has the scaled speed values and the quality 
+        size(classifier);
+        size(new_data_var);
         prediction_class = predict(classifier, new_data_var);
         if iscell(prediction_class) == 1
             prediction_class = cell2mat(prediction_class);
             prediction_class = str2num(prediction_class);
         end
+        disp(prediction_class);
+        size(prediction_class);
         pred_isolate  = find(prediction_class (:,1) == 1);
+        % is the tracks that are bound ( only has the scaled speed values)
         tracks_prediction = tracks_2(pred_isolate, :);
+        % the bound tracks with 18 columns
         new_data_4 = new_data_3(pred_isolate,:);
+        % the "bound" tracks with 7 columns : the speed values that are scaled,max_q_tr, mean intensity, max intensity
 
-         filename_tracks_save = strrep(filename_new_data{i},'tracksdata.mat', 'NOQ.mat');
-
+        filename_tracks_save = strrep(filename_new_data{i},'tracksdata.mat', 'NOQ.mat');
+            %trainingQ: speed parameters of bound track as well as std_sp, med_q_tr, std_q_tr,
+            %prediction class : class asigned (0 or 1) // 
+            %Training_Scaled: scaled speed parameters of the whole data
+            %Tracks_pred: the whole features(18) for the bound tracks
+          % *** not that matlab uses the scientific notation for displaying the larg and small numbers so they speed valuse
+          % may be seen as 0.0000 but the actual value exists/ also the
+          % tracks ID and number of frames may seem in float datatype
         data_tracks_pred = struct('Tracks_pred',tracks_prediction, 'Prediction_class', prediction_class,'Training_Scaled',new_data_2,'TrainingQ',new_data_4);
         save (filename_tracks_save, 'data_tracks_pred');
     end 
 end
 
 
-%% 
+%% takes classification and tracks data file and combines all of the files into one, and outputs: classification_combined.mat and training_combined.mat
 function Training_combiner
     filenames_CL = uigetfile('*classification*.mat', 'Pick the classification.mat files','Multiselect', 'on');
     filenames_CL = filenames_CL';
@@ -213,8 +246,11 @@ function Training_combiner
     save('classification_combined.mat', 'tracks_classification_final')
     save('training_combined.mat', 'tracks_training_final');
 end
-
 %%
+%%This function takes the tracks landed in noclei s phase( from the
+%%outputter function) and the video and inserts the track
+%%in the video and asks user to decide if its bound or nois
+% output : classification.mat
 function Training_data
     filename_data_tracks = uigetfile('*tracksdata.mat', 'Pick tracks file');
     [filename_img,  path_img] = uigetfile('*.tif*','Pick Image');
@@ -295,7 +331,7 @@ function Training_data
 end
 
 
-%%
+%% takes training and classification combined file outputs a trained model with name "mod_bag"
 function Learner_model
     learn_input = inputdlg({'Use Combined training data set?'}, 'Training',[1 100], {'Combined'});    
     pred_used = inputdlg({'Spot Width','Mean Speed', 'Max Speed', 'Min Speed', 'Median Speed','Sigma Speed','Mean Quality', 'Max Quality', 'Min Quality', 'Median Quality', 'Sigma Quality','Mean Total Intensity', 'Max Intensity'}, 'Predictors', ...
@@ -368,9 +404,12 @@ function Learner_model
     end
 end
 
-
+% calls GMM_BIC /// Trackmate_Analysis_Step2
+% //Bound_time_estimator_no_bounds //Fitting_truncExponential
 function Trackmate_Analysis_ML_FINAL
-
+% first, we will use GMM_BIC to fit the intensity values of the bound
+% tracks of the whole data followed by a clustring to isolate the single,
+% bound molecules
 skip_filter_input = inputdlg('Would you like to skip filtering tests?','Existing Data?',[1 50],{'N'});
 if skip_filter_input{1} == 'N' | skip_filter_input{1} == 'n'
     input_GMM_clustering = inputdlg({'Intensities components','Time Interval','Truncation Point'}, 'Options',...
@@ -381,22 +420,30 @@ if skip_filter_input{1} == 'N' | skip_filter_input{1} == 'n'
     
     filenames = uigetfile('*_Q*.mat', 'Pick the segmented tracks .mat files','Multiselect', 'on');
      filenames = filenames';
+     %filenames = {filenames};
      num_files = length(filenames);
      Tracks_cell = cell(num_files,1);
      training_cell = cell(num_files,1);
      for i = 1:num_files
              ld=importdata(filenames{i});
              Tracks_cell{i}=ld.Tracks_pred;
+             % Tracks_cell has the 18 columns 
              training_cell{i}=ld.TrainingFinal;
+             % training_cell has 7 columns
      end
     
     tracks_conc = vertcat(Tracks_cell{:});
+    %Tracks_cell has the 18 columns from all of the Q files (all of the
+    %stream)
     num_tracks = length(tracks_conc(:,1));
     disp(num2str(num_tracks));
  
-    
+    %% ************ track duration multiplied by time interval **************
     On_time_final = (tracks_conc(:,14))*time_int;
+    % on_time_final is all of the tracks duration which the track
+    % duration was multiplied by time interval =1
     cat_training = vertcat(training_cell{:});
+    % cat_training has the 7 columns for all  of the tracks and streams
     inten_use = inputdlg({'Use Mean Intensity?'}, 'GMM Intensity',...
         [1 50], {'Y'});
     if inten_use{1} == 'Y'
@@ -407,8 +454,15 @@ if skip_filter_input{1} == 'N' | skip_filter_input{1} == 'n'
     
  
     intensities_final_bound = intensities_final;
+    % a column containig the intensities of the bound molecule for the
+    % whole data
      tracks_final_bound = tracks_conc;
+     % the 18 columns for all of the data
      On_time_final_bound = On_time_final;
+     ['On_time_final_bound']
+     length(On_time_final_bound)
+     %on_time_final is all of the tracks durations whici its track
+    % duration was multiplied by time interval
 %     disp('classification tracks')
     disp(length(intensities_final_bound(:,1)))
     
@@ -416,9 +470,12 @@ if skip_filter_input{1} == 'N' | skip_filter_input{1} == 'n'
 
 
     %% 
+    % fits the intensity vaue of the tracks to a GMM to prevent the
+    % overfitting
     intensities_models_tested = str2num(input_GMM_clustering{1});
     [BestModel_intensities, numComponents_intensities] = GMM_BIC ( intensities_final_bound,intensities_models_tested, true)
-
+% clustring the intensity value of the data to isolate tracks representing
+% the single molecul
 
     idx_int = cluster(BestModel_intensities, intensities_final_bound);
     cluster_array_int = zeros(length( intensities_final_bound),numComponents_intensities);
@@ -432,6 +489,8 @@ if skip_filter_input{1} == 'N' | skip_filter_input{1} == 'n'
     end
 
     num_of_bins2 = ceil(sqrt(numel( intensities_final_bound))); 
+    % binning the histogram to have less category (ex. age 10 to 80,
+    % instead of 70 groups we could have 7!)
     bin_width = (max( intensities_final_bound)-min( intensities_final_bound))/num_of_bins2;
     mean_intensities = zeros(numComponents_intensities,1);
     figure,
@@ -440,6 +499,7 @@ if skip_filter_input{1} == 'N' | skip_filter_input{1} == 'n'
         hold on
         mean_intensities(i) = mean(Int_values{i});
     end
+    % number of the data that fall within the different range of intensities
     xlabel('Intensity (A.U)')
     ylabel('Counts')
     hold off
@@ -455,6 +515,11 @@ if skip_filter_input{1} == 'N' | skip_filter_input{1} == 'n'
     find_single_molecules = find(Single_molecules);
     %Quality_Tracks_seg_bound_single = Quality_Tracks_seg_bound_total(find_single_molecules,:);
     On_time_bound_single = On_time_final_bound (find_single_molecules,:);
+    %***** this is the place that the SAMPLE SIZE decreases
+    ['On_time_bound_single2']
+    length(On_time_bound_single)
+    % the whole tracks that are representing single molecuels with 18
+    % columns
     intensities_bound_single = intensities_final_bound (find_single_molecules, :);
     disp(mean(intensities_bound_single))
     disp(std(intensities_bound_single))
@@ -484,11 +549,15 @@ else
 end
 
 %% 
+% after fiting the intensity values/ we test for the two exponential by
+% calling the Trackmate_Analysis_Step2 function
+% here the "On_time_bound_single" is the track duration * time interval of all of the
+% tracks representing single molecules 
 figure,
 histogram(On_time_bound_single,'BinMethod','sqrt','Normalization','pdf');
 input_test = inputdlg('Would you like to test for two exponentials?','Two Exponentials',[1 50],{'N'});
 if input_test{1} == 'Y' | input_test{1}== 'y' 
-    
+    % for the track duration
         Trackmate_Analysis_Step2 (On_time_bound_single)
     
     
@@ -499,15 +568,24 @@ else
     TF = isoutlier (On_time_bound_single, 'quartiles','ThresholdFactor',4.0);
 
     On_time_bound_single_filtered = On_time_bound_single(TF~=1,1);
-  
+    ['On_time_bound_single_filtered']
+    % On_time_bound_single_filtered is the track duration * time interval of all of the
+    % tracks representing single molecules and are not outliner
+    length(On_time_bound_single_filtered)
+    length(On_time_bound_single)
     intensities_bound_single_filtered = intensities_bound_single (TF~=1,1);
+
     tracks_bound_single_filtered = tracks_bound_single(TF~=1,:);
+    %added by me:
+    %save('tracks_bound_single_filtered_toCheck.mat','tracks_bound_single_filtered')
     [est_filtered, ci_filtered, se_filtered] = Fitting_truncExponential (On_time_bound_single_filtered, time_int,truncation_pt);
     
     input_err = inputdlg({'Do you want to calculate bound time?'}, 'Error Calculator', [1 50], {'Y'});
     if input_err{1} == 'Y'| input_err {1} == 'y'
         input_bleach = inputdlg({'Bleach Time', 'Variation in bleach' },'Errors', [1 50; 1 50], {'20', '0.10'});
         [Tbound_filt, Tbound_ci_filt, Tbound_err_filt] = Bound_time_estimator_no_bounds(On_time_bound_single_filtered, est_filtered, str2num(input_bleach{1}),str2num(input_bleach{2}), truncation_pt);
+        %raise a message box: 1) the estimated bound time after
+        %photobleaching
         waitfor(msgbox({num2str(Tbound_filt),strcat(num2str(Tbound_ci_filt(1)), ':', num2str(Tbound_ci_filt(2))), num2str(Tbound_err_filt)}, 'Bound Time'));
         
         input_save_filter = inputdlg('Save Results?', 'Save', [1 50], {'Y'});
@@ -598,1431 +676,4 @@ end
 
 
 end          
-%% 
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-     
+%%

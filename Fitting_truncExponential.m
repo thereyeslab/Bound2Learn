@@ -1,12 +1,18 @@
+%after getting the residence time of the classifed bound track
 function [est, ci, se] = Fitting_truncExponential (data, interval_time, truncpt) 
 %interval_time = 1.0;
+['length'] 
+length(data)
 mu=mean(data);
 %truncpt=min(data);
+% mu_trunc: mean track duration
 pdf_truncexp = @(data_in,mu_trunc) exppdf(data_in,mu_trunc) ./(1-expcdf(truncpt,mu_trunc));
 start = mu;
-[est, ci] = mle(data, 'pdf',pdf_truncexp, 'start',start,'lowerbound',0);
-% disp(est)
-% disp(ci)
+%performs a maximum likelihood estimation to find the parameters of a truncated exponential distribution 
+% that best fit the given data, using an initial guess for the parameter values and a specified PDF function. 
+[est, ci] = mle(data, 'pdf',pdf_truncexp, 'start',start,'lowerbound',0)
+disp(est)
+disp(ci)
 x=0:0.1:max(data);
 y=pdf_truncexp(x,est);
 y2=exppdf(x,mu);
@@ -19,12 +25,18 @@ acov = mlecov(est,data,'pdf',pdf_truncexp);
 se = sqrt(diag(acov));
 
 
-boot_input_dlg = inputdlg('Do Boostrap Sampling?','Error Calculation?',[1 50],{'Y'});
+boot_input_dlg = inputdlg('Do Bootstrap Sampling?','Error Calculation?',[1 50],{'Y'});
 if boot_input_dlg{1} == 'Y' | boot_input_dlg{1} == 'y'    
 %OPTION: Bootstrapping
      boot_options=statset('UseParallel',true); 
+
      param_fit_mle_norm=@(Track_duration) mle(Track_duration, 'pdf',pdf_truncexp, 'start',start,'lowerbound',0);
-     [boot_CI, bootstat_norm]=bootci(1000,{param_fit_mle_norm,data},'type','bca','options',boot_options);
+     class(param_fit_mle_norm)
+     %disp(data)
+     %disp(boot_options)
+     %disp(param_fit_mle_norm)
+     %[boot_CI, bootstat_norm]=bootci(10,{param_fit_mle_norm,data},'type','bca','options',boot_options);
+     [boot_CI, bootstat_norm]=bootci(10,{param_fit_mle_norm,data},'type','bca');
      Tbound_ci = boot_CI; 
      Tbound_err = std(bootstat_norm);
 %      disp(Tbound_ci)
