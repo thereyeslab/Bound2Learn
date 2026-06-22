@@ -1,4 +1,4 @@
-%%
+%%after classification  % calls Two_exponential_test.m
 function Trackmate_STEP_2 = Trackmate_Analysis_Step2(data) 
 
     prompt_values = {'Time Interval', 'Proportion Start of Alpha', 'TboundalphaStart', 'TboundbetaStart', 'TbleachStart', 'UpperBoundAlpha', 'UpperBoundBeta', 'Percent Variation Bleach (Decimal)', 'Alpha significance', 'Truncation Point'};

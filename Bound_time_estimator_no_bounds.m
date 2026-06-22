@@ -1,5 +1,7 @@
 function [Tbound, Tbound_ci, Tbound_err] = Bound_time_estimator_no_bounds(data, Ttrack, Tbleach,var_bleach, truncpt)
-Tbound = (Ttrack * Tbleach)/(Tbleach - Ttrack);
+Ttrack
+Tbleach
+Tbound = (Ttrack * Tbleach)/(Tbleach - Ttrack)
 x=0:0.1:max(data);
 pdf_truncexp = @(data_in,mu_trunc) exppdf(data_in,mu_trunc) ./(1-expcdf(truncpt,mu_trunc));
 pdf_exp_two_kinetics = @(data_in,Tbound_in,Tbleach_in) ((Tbleach_in + Tbound_in)/(Tbound_in*Tbleach_in))*exp(-(((Tbleach_in + Tbound_in)/(Tbound_in*Tbleach_in))*(data_in-truncpt)));

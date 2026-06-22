@@ -1,3 +1,4 @@
+%after truncation
 function [hratio, pValue_ratio, bic,uMLE]   = Two_exponential_test (data, time_int, pstart, Tboundalphastart,Tboundbetastart, Tbleachstart, Tboundalpha_ub,Tboundbeta_ub,percent_var_bl, alpha_sig, truncpt)
 
 %truncp=min(data);

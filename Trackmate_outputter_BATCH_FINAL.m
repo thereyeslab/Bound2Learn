@@ -22,11 +22,15 @@
 % study cells undergoing S phse, then your mask should be the result of
 % segmentation of nuclei in the green channel projected image(based on the foci of PCNA_mNeonGreen)
 
-filenames_images = uigetfile('*binary_auto.tif', 'Pick Binary Image Files', 'Multiselect', 'on');
+filenames_images = uigetfile('*.png', 'Pick Binary Image Files', 'Multiselect', 'on');
 filenames_spots = uigetfile('*spots.csv', 'Pick spots.csv', 'Multiselect', 'on');
 filenames_tracks = uigetfile('*tracks.csv', 'Pick tracks.csv', 'Multiselect', 'on');
 num_files_images = length(filenames_images);
 % Asking user 
+%num_files_images = 1;
+%filenames_images = {filenames_images};
+%filenames_spots = {filenames_spots};
+%filenames_tracks = {filenames_tracks};
 user_input_tracks = inputdlg({'What was the time interval','Min # of localizations for track',' # of localizations for Intensity','Intensity Thresh', 'Track Window' , 'Spot Thresh'},'Tracks Information',...
     [1 50; 1 50; 1 50; 1 50; 1 50; 1 50;],{'1','4','4', '500', '3', '1.5'}); % The default values
 folder_save = strcat('AnalysisMLnew_S','_','Time_Int',num2str(user_input_tracks{1}),'_',num2str(user_input_tracks{4}),'_','Trkwd_',num2str(user_input_tracks{5}),'_','datpt_',num2str(user_input_tracks{2}),'_','Spt_Thr_', num2str(user_input_tracks{6}));
@@ -38,7 +42,25 @@ data_point_intensity = str2num(user_input_tracks{3});
 spt_thresh = str2num(user_input_tracks{6});
 for j = 1:num_files_images
 bin_image = imread(filenames_images{1,j});
-[row, column, v] = find (bin_image ==1);
+%%
+% % make a copy of the original image
+%image = bin_image;
+%Create a disk-shaped structuring element with a radius of 5 pixels
+%se = strel('disk', 1);
+%Dilate the binary mask
+%bin_image = imdilate(image, se);
+
+%Display the original and dilated masks for comparison
+%figure;
+%subplot(1, 2, 1);
+%imshow(image, [min(image(:)) max(image(:))]);
+%title('Original Mask');
+
+%subplot(1, 2, 2);
+%imshow(bin_image, [min(bin_image(:)) max(bin_image(:))]);
+%title('Dilated Mask');
+%%
+[row, column, v] = find (bin_image > 0);
 %% 
 
 filename_spot = filenames_spots{1,j};
@@ -50,6 +72,7 @@ Table_Spot = csvread(filename_spot);
 %% 
 
 Quality_Tracks = Table_Track;%.data;
+%the tracks landed in the s phase (binary mask =1)
 Quality_Tracks_seg = zeros(length(Quality_Tracks(:,1)),18);
 for i = 1:length(Quality_Tracks(:,1))
     x_coord = round(Quality_Tracks(i,17));
@@ -71,7 +94,7 @@ save_name_tracks_seg = strrep(filename_track, 'tracks.csv', 'seg.mat');
 %% 
 Quality_Tracks_seg = Quality_Tracks_seg(any(Quality_Tracks_seg,2),:);
 
-
+% if the track length is lower than 4 it discards it (cause its too short)
 thresh_find = find (Quality_Tracks_seg(:,2)<data_point);
 Quality_Tracks_seg(thresh_find,:) = [];
 
@@ -96,14 +119,17 @@ for i = 1:length(Quality_Tracks_seg(:,1))
     mean_track_intensity_all = mean(intensities_track_spot(1:end,1));
 
     max_track_intensity = max(intensities_track_spot(1:end,1));
+    % 14 th column = the track duration
 
     if Quality_Tracks_seg(i,2)/(Quality_Tracks_seg(i,14)+1)>spt_thresh
         continue
     else
+        %Track_mate_training = [spt width, 2:6 : speed values,7:11 :quality values ,mean intensity, max intensity]
+        %3: spot width
     Track_mate_training(i,1) = Quality_Tracks_seg(i,3);
     Track_mate_training(i,13) = max_track_intensity;
 
-    
+    % speed values 
     Track_mate_training(i,2:6) = Quality_Tracks_seg(i,4:8);
     Track_mate_training(i,7:11) = Quality_Tracks_seg(i,9:13);
     Track_mate_training(i,12) = mean_track_intensity_all;
@@ -115,7 +141,9 @@ Quality_Tracks_Seg2 = Quality_Tracks_Seg2(any(Quality_Tracks_Seg2,2),:);
 Track_mate_training = Track_mate_training(any(Track_mate_training,2),:);
 
 save_name_tracks = strrep(filename_track, '.csv', 'data.mat');
-
+% saves 3 fields:1) Segmented_Tracks which is the tracks landed in the s
+% phase noclei
+%2. Training : contains the 13 columns (taken from the tracks.csv and spot.csv :%Track_mate_training = [spt width, 2:6 : speed values,7:11 :quality values ,mean intensity, max intensity]
 data_tracks = struct ('Segmented_Tracks',Quality_Tracks_Seg2, 'Training', Track_mate_training);
 save(strcat(folder_save,'/',save_name_tracks), 'data_tracks')
 end
