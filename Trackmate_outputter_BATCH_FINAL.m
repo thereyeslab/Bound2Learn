@@ -1,11 +1,34 @@
 %%%No speed factor compensation
+% This program lands the tracks within the nucleus and discard the ones that
+% are outside of the nucleus. Also, filters the tracks based on some parameters such as track length.
+% The out put of this program will be used in the ML classification.
+% Inputs:
+% - binary_auto.tif (binary mask (tif)): The binary mask from segmentation
+% of cells or nucleus (only the ones in S Phase or all of them)
+% - spots files (csv):  has 5 coloumns: [tr_identifi, tr_fram, x_tr, y_tr, inten]
+% - tracks files (csv): has 18 coloumns : [Track_IDs, spt_tr, spt_widt, mean_sp, max_sp, min_sp, med_sp,
+% std_sp, mean_q, max_q_tr, min_q_tr, med_q_tr, std_q_tr, tr_dur, tr_start, tr_fin, x_lc, y_lc]
+% - Propmt user for tracks information: 1) The time interval in which the data was collected (default = 1) 
+% 2) Min #of localizations for track : The min number of the track length. Tracks
+% shorter than this number will get discarded. (default = 4)
+% 3) # of localizations for Intensity: 
+% 3) Intensity Thresh: The radius of the spots chosed
+% 4) 
+% Note: The only parameters usded 
+% outputs: 
+% _ 
+% 
+% Notes: The binary mask should be based on your research. If you want to
+% study cells undergoing S phse, then your mask should be the result of
+% segmentation of nuclei in the green channel projected image(based on the foci of PCNA_mNeonGreen)
 
 filenames_images = uigetfile('*binary_auto.tif', 'Pick Binary Image Files', 'Multiselect', 'on');
 filenames_spots = uigetfile('*spots.csv', 'Pick spots.csv', 'Multiselect', 'on');
 filenames_tracks = uigetfile('*tracks.csv', 'Pick tracks.csv', 'Multiselect', 'on');
 num_files_images = length(filenames_images);
+% Asking user 
 user_input_tracks = inputdlg({'What was the time interval','Min # of localizations for track',' # of localizations for Intensity','Intensity Thresh', 'Track Window' , 'Spot Thresh'},'Tracks Information',...
-    [1 50; 1 50; 1 50; 1 50; 1 50; 1 50;],{'1','4','4', '500', '3', '1.5'});
+    [1 50; 1 50; 1 50; 1 50; 1 50; 1 50;],{'1','4','4', '500', '3', '1.5'}); % The default values
 folder_save = strcat('AnalysisMLnew_S','_','Time_Int',num2str(user_input_tracks{1}),'_',num2str(user_input_tracks{4}),'_','Trkwd_',num2str(user_input_tracks{5}),'_','datpt_',num2str(user_input_tracks{2}),'_','Spt_Thr_', num2str(user_input_tracks{6}));
 mkdir(folder_save);
 time_scale = str2num(user_input_tracks{1});
